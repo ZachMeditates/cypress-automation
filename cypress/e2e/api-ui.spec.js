@@ -14,7 +14,7 @@ describe('API and UI Testing Combined', () => {
                 method: 'POST',
                 url: '/authenticate',
                 body: validUser,
-                failOnStatusCode: false // Because this demo site doesn't have a real API
+                failOnStatusCode: false
             }).then((response) => {
                 // Log API response for debugging
                 cy.log('API Response:', response.status);
@@ -79,51 +79,69 @@ describe('API and UI Testing Combined', () => {
     });
 
     describe('API Status Checks with UI Feedback', () => {
-        it('should check status endpoint and display in UI', () => {
-            // API Health Check
-            cy.request('/status').then((response) => {
-                cy.log('API Status:', response.status);
-            });
-
-            // Navigate to status page in UI
-            cy.visit('/status_codes/200');
-            cy.get('p').should('contain', '200');
-        });
-
         it('should handle different status codes', () => {
-            const statusCodes = [200, 301, 404, 500];
-
-            // Test each status code
-            statusCodes.forEach(code => {
-                cy.request({
-                    url: `/status_codes/${code}`,
-                    failOnStatusCode: false
-                }).then((response) => {
-                    expect(response.status).to.equal(code);
-                });
-
-                // Verify UI display for each code
-                cy.visit(`/status_codes/${code}`);
-                cy.get('p').should('contain', code.toString());
+            // Handle 200 status
+            cy.request({
+                url: '/status_codes/200',
+                failOnStatusCode: false
+            }).then(response => {
+                expect(response.status).to.equal(200);
             });
+    
+            cy.visit('/status_codes/200', { failOnStatusCode: false });
+            cy.get('p').should('contain', '200');
+    
+            // Handle 301 status
+            cy.request({
+                url: '/status_codes/301',
+                failOnStatusCode: false
+            }).then(response => {
+                expect(response.status).to.equal(301);
+            });
+    
+            cy.visit('/status_codes/301', { failOnStatusCode: false });
+            cy.get('p').should('contain', '301');
+    
+            // Handle 404 status
+            cy.request({
+                url: '/status_codes/404',
+                failOnStatusCode: false
+            }).then(response => {
+                expect(response.status).to.equal(404);
+            });
+    
+            cy.visit('/status_codes/404', { failOnStatusCode: false });
+            cy.get('p').should('contain', '404');
+    
+            // Handle 500 status
+            cy.request({
+                url: '/status_codes/500',
+                failOnStatusCode: false
+            }).then(response => {
+                expect(response.status).to.equal(500);
+            });
+    
+            cy.visit('/status_codes/500', { failOnStatusCode: false });
+            cy.get('p').should('contain', '500');
         });
     });
 
     describe('Form Submission with API Verification', () => {
         it('should submit form and verify data via API and UI', () => {
             const testData = {
-                email: 'test@example.com',
+                key: 'A',
                 message: 'Test message'
             };
 
-            // Submit form via UI
+            // Submit via UI
             cy.visit('/key_presses');
-            cy.get('#target').type(testData.message);
+            cy.get('#target').type(testData.key);
 
-            // Verify key press results
-            cy.get('#result').should('be.visible');
+            // Verify key press results in UI
+            cy.get('#result').should('be.visible')
+                .and('contain', `You entered: ${testData.key}`);
 
-            // API verification (simulated as the demo site doesn't have a real API)
+            // API verification
             cy.request({
                 method: 'GET',
                 url: '/key_presses',

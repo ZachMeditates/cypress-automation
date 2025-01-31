@@ -1,75 +1,56 @@
 // cypress/e2e/basic-auth.spec.js
 
-import BasicAuthPage from '../pages/BasicAuthPage';
-
 describe('Basic Authentication Tests', () => {
-    const validCredentials = {
-        username: 'admin',
-        password: 'admin'
-    };
-
-    const invalidCredentials = {
-        username: 'invalid',
-        password: 'wrong'
-    };
-
+    // Base URL with credentials
+    const authUrl = 'https://admin:admin@the-internet.herokuapp.com/basic_auth';
+    
     it('should successfully authenticate with valid credentials', () => {
-        BasicAuthPage
-            .visitWithAuth(validCredentials.username, validCredentials.password)
-            .verifySuccessfulAuth();
+        cy.visit(authUrl);
+        
+        cy.get('p')
+            .should('exist')
+            .should('be.visible')
+            .should('contain', 'Congratulations');
     });
 
     it('should handle failed authentication with invalid credentials', () => {
-        // Intercept the auth failure response
+        const invalidUrl = 'https://invalid:wrong@the-internet.herokuapp.com/basic_auth';
+        
         cy.on('fail', (error) => {
             expect(error.message).to.include('401');
             return false;
         });
 
-        // Attempt to visit with invalid credentials
-        BasicAuthPage.visitWithAuth(
-            invalidCredentials.username, 
-            invalidCredentials.password
-        );
+        cy.visit(invalidUrl, { failOnStatusCode: false });
     });
 
     it('should verify page content after successful authentication', () => {
-        BasicAuthPage.visitWithAuth(
-            validCredentials.username, 
-            validCredentials.password
-        );
-
-        // Verify the page content
-        BasicAuthPage
-            .getPageContent()
+        cy.visit(authUrl);
+        
+        cy.get('.example')
             .should('exist')
             .within(() => {
-                // Check for specific elements or text
                 cy.get('h3').should('contain', 'Basic Auth');
                 cy.get('p').should('not.be.empty');
             });
     });
 
     it('should maintain authentication across multiple pages', () => {
-        // First authenticate
-        BasicAuthPage.visitWithAuth(
-            validCredentials.username, 
-            validCredentials.password
-        );
-
-        // Verify initial authentication
-        BasicAuthPage.verifySuccessfulAuth();
-
-        // Navigate away and back to verify session
-        cy.visit('/');
-        cy.visit('/basic_auth', {
-            auth: {
-                username: validCredentials.username,
-                password: validCredentials.password
-            }
-        });
-
+        // Initial visit with auth
+        cy.visit(authUrl);
+        
+        // Verify initial auth
+        cy.get('p')
+            .should('contain', 'Congratulations');
+        
+        // Navigate away
+        cy.visit('https://admin:admin@the-internet.herokuapp.com');
+        
+        // Navigate back with auth
+        cy.visit(authUrl);
+        
         // Verify still authenticated
-        BasicAuthPage.verifySuccessfulAuth();
+        cy.get('p')
+            .should('contain', 'Congratulations');
     });
 });

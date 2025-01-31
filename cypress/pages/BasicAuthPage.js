@@ -3,27 +3,25 @@
 class BasicAuthPage {
     selectors = {
         successMessage: 'p',
-        pageContent: '.example'
+        pageContent: '.example',
+        header: 'h3'
     };
 
     /**
-     * Visit the basic auth page with credentials in the URL
+     * Visit the basic auth page with credentials
      * @param {string} username - The username for basic auth
      * @param {string} password - The password for basic auth
      */
     visitWithAuth(username = 'admin', password = 'admin') {
-        cy.visit(`/basic_auth`, {
-            auth: {
-                username,
-                password
-            }
+        cy.visit(`https://${username}:${password}@the-internet.herokuapp.com/basic_auth`, {
+            failOnStatusCode: false
         });
         return this;
     }
 
     /**
      * Get the success message element
-     * @returns {Cypress.Chainable} 
+     * @returns {Cypress.Chainable}
      */
     getSuccessMessage() {
         return cy.get(this.selectors.successMessage);
@@ -39,12 +37,14 @@ class BasicAuthPage {
 
     /**
      * Check if authentication was successful
-     * @returns {Cypress.Chainable}
+     * @returns {BasicAuthPage}
      */
     verifySuccessfulAuth() {
-        this.getSuccessMessage()
+        cy.get(this.selectors.successMessage)
+            .should('exist')
+            .should('be.visible')
             .should('contain', 'Congratulations')
-            .and('contain', 'successfully logged into a secure area');
+            .should('contain', 'successfully logged into a secure area');
         return this;
     }
 }
