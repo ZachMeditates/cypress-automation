@@ -1,0 +1,23 @@
+version: 2
+snapshot:
+  widths:
+    - 375  # Mobile
+    - 768  # Tablet
+    - 1280 # Desktop
+  min-height: 1024
+  percy-css: |
+    /* Hide dynamic elements that might cause flaky tests */
+    .timestamp { display: none; }
+    .random-data { visibility: hidden; }
+  enable-javascript: true
+  include-fonts: true
+discovery:
+  allowed-hostnames: []  # Add any external domains you need to load resources from
+  network-idle-timeout: 100
+  page-pool-size: 5
+  timeout: 30000
+  concurrency: 5
+upload:
+  files: "**/*.{png,jpg,jpeg}"
+  ignore: ""
+  strip-keys: []
