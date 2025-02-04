@@ -13,108 +13,109 @@ class ComplexInteractionsPage {
         italicButton: 'button[title="Italic"]',
         
         // Nested frames
-        topFrame: '[name="frame-top"]',
-        leftFrame: '[name="frame-left"]',
-        middleFrame: '[name="frame-middle"]',
-        rightFrame: '[name="frame-right"]',
-        bottomFrame: '[name="frame-bottom"]',
-        
-        // Menu elements
-        menuItems: '.menu > li',
-        subMenuItems: '.dropdown-menu > li'
+        topFrame: 'frame[name="frame-top"]',
+        leftFrame: 'frame[name="frame-left"]',
+        middleFrame: 'frame[name="frame-middle"]',
+        rightFrame: 'frame[name="frame-right"]',
+        bottomFrame: 'frame[name="frame-bottom"]'
     };
 
-    /**
-     * Visit the drag and drop page
-     */
     visitDragAndDrop() {
         cy.visit('/drag_and_drop');
+        cy.get(this.selectors.columnA).should('be.visible');
+        cy.get(this.selectors.columnB).should('be.visible');
         return this;
     }
 
-    /**
-     * Visit the iframe page
-     */
     visitIframePage() {
         cy.visit('/iframe');
+        cy.get(this.selectors.textEditor).should('be.visible');
         return this;
     }
 
-    /**
-     * Visit the nested frames page
-     */
     visitNestedFrames() {
         cy.visit('/nested_frames');
+        cy.get(this.selectors.topFrame).should('exist');
         return this;
     }
 
-    /**
-     * Perform drag and drop operation
-     * @param {string} source - source element
-     * @param {string} target - target element
-     */
-    dragAndDrop(source, target) {
+    performDragAndDrop() {
         const dataTransfer = new DataTransfer();
 
-        cy.get(source)
-            .trigger('dragstart', { dataTransfer });
-        
-        cy.get(target)
-            .trigger('drop', { dataTransfer });
-        
-        cy.get(source)
+        cy.get(this.selectors.columnA)
+            .should('be.visible')
+            .trigger('dragstart', {
+                dataTransfer
+            })
+            .trigger('drag');
+
+        cy.get(this.selectors.columnB)
+            .should('be.visible')
+            .trigger('dragover', {
+                dataTransfer
+            })
+            .trigger('drop', {
+                dataTransfer
+            });
+
+        cy.get(this.selectors.columnA)
             .trigger('dragend');
 
-        return this;
-    }
-
-    /**
-     * Switch to iframe and perform action
-     * @param {string} action - text to type in iframe
-     */
-    typeInIframe(text) {
-        cy.get(this.selectors.textEditor)
-            .its('0.contentDocument.body')
-            .should('be.visible')
-            .then(cy.wrap)
-            .clear()
-            .type(text);
+        // Allow time for DOM updates
+        cy.wait(500);
         
         return this;
     }
 
-    /**
-     * Format text in iframe
-     * @param {string} format - 'bold' or 'italic'
-     */
+    typeInIframe(text) {
+        cy.get(this.selectors.textEditor)
+            .should('be.visible')
+            .then($iframe => {
+                const iframe = $iframe.contents();
+                const body = iframe.find('body');
+                
+                cy.wrap(body)
+                    .clear()
+                    .type(text);
+            });
+        
+        return this;
+    }
+
     formatText(format) {
         const button = format === 'bold' ? 
             this.selectors.boldButton : 
             this.selectors.italicButton;
-        
-        cy.get(button).click();
+            
+        cy.get(button)
+            .should('be.visible')
+            .click();
+            
         return this;
     }
 
-    /**
-     * Get text from a specific frame
-     * @param {string} frameSelector - selector for the frame
-     */
-    getFrameText(frameSelector) {
-        return cy.get(frameSelector)
-            .its('0.contentDocument.body')
+    verifyIframeContent(selector, expectedText) {
+        cy.get(this.selectors.textEditor)
             .should('be.visible')
-            .then(cy.wrap);
+            .then($iframe => {
+                const iframe = $iframe.contents();
+                cy.wrap(iframe.find(`body ${selector}`))
+                    .should('have.text', expectedText);
+            });
+            
+        return this;
     }
 
-    /**
-     * Verify column contents after drag and drop
-     * @param {string} columnSelector - selector for the column
-     * @param {string} expectedText - expected text in the column
-     */
-    verifyColumnContent(columnSelector, expectedText) {
-        cy.get(columnSelector)
-            .should('have.text', expectedText);
+    getFrameContent(frameSelector) {
+        return cy.get(frameSelector)
+            .its('0.contentDocument.body')
+            .should('not.be.empty');
+    }
+
+    verifyFrameContent(frameSelector, expectedText) {
+        this.getFrameContent(frameSelector)
+            .should('contain', expectedText);
+            
         return this;
     }
 }

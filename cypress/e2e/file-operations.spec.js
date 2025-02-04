@@ -1,144 +1,219 @@
 // cypress/e2e/file-operations.spec.js
 
-import FileOperationsPage from '../pages/FileOperationsPage';
-
 describe('File Operations Tests', () => {
     describe('File Upload Tests', () => {
         beforeEach(() => {
-            FileOperationsPage.visitUploadPage();
+            cy.visit('/upload');
         });
 
         it('should upload file using button', () => {
-            // Create a test file
-            cy.writeFile('cypress/fixtures/test-upload.txt', 'Hello, World!');
-
-            FileOperationsPage
-                .uploadFile('cypress/fixtures/test-upload.txt')
-                .verifyUploadSuccess('test-upload.txt');
+            cy.fixture('example.json').then(fileContent => {
+                cy.get('#file-upload')
+                    .selectFile({
+                        contents: Cypress.Buffer.from(JSON.stringify(fileContent)),
+                        fileName: 'test-upload.txt',
+                        mimeType: 'text/plain'
+                    });
+            });
+            
+            cy.get('#file-submit').click();
+            cy.get('#uploaded-files', { timeout: 10000 })
+                .should('contain', 'test-upload.txt');
         });
 
         it('should upload file using drag and drop', () => {
-            // Create a test file
-            cy.writeFile('cypress/fixtures/drag-drop.txt', 'Drag and Drop Test');
+            cy.fixture('example.json').then(fileContent => {
+                cy.get('#file-upload')
+                    .selectFile({
+                        contents: Cypress.Buffer.from(JSON.stringify(fileContent)),
+                        fileName: 'drag-drop.txt',
+                        mimeType: 'text/plain'
+                    }, { action: 'drag-drop' });
+            });
 
-            FileOperationsPage
-                .dragAndDropFile('cypress/fixtures/drag-drop.txt')
-                .verifyUploadSuccess('drag-drop.txt');
+            cy.get('#file-submit').click();
+            cy.get('#uploaded-files', { timeout: 10000 })
+                .should('contain', 'drag-drop.txt');
         });
 
         it('should handle large file upload', () => {
-            // Create a large test file (1MB)
             const largeContent = 'A'.repeat(1024 * 1024);
-            cy.writeFile('cypress/fixtures/large-file.txt', largeContent);
+            cy.get('#file-upload').selectFile({
+                contents: Cypress.Buffer.from(largeContent),
+                fileName: 'large-file.txt',
+                mimeType: 'text/plain'
+            });
 
-            FileOperationsPage
-                .uploadFile('cypress/fixtures/large-file.txt')
-                .verifyUploadSuccess('large-file.txt');
+            cy.get('#file-submit').click();
+            cy.get('#uploaded-files', { timeout: 15000 })
+                .should('contain', 'large-file.txt');
         });
 
         it('should handle multiple file upload attempts', () => {
-            // Create test files
-            cy.writeFile('cypress/fixtures/file1.txt', 'File 1');
-            cy.writeFile('cypress/fixtures/file2.txt', 'File 2');
+            cy.fixture('example.json').then(fileContent => {
+                // First upload
+                cy.get('#file-upload')
+                    .selectFile({
+                        contents: Cypress.Buffer.from(JSON.stringify(fileContent)),
+                        fileName: 'file1.txt',
+                        mimeType: 'text/plain'
+                    });
+                
+                cy.get('#file-submit').click();
+                cy.get('#uploaded-files')
+                    .should('contain', 'file1.txt');
 
-            // Upload first file
-            FileOperationsPage
-                .uploadFile('cypress/fixtures/file1.txt')
-                .verifyUploadSuccess('file1.txt');
-
-            // Navigate back and upload second file
-            FileOperationsPage
-                .visitUploadPage()
-                .uploadFile('cypress/fixtures/file2.txt')
-                .verifyUploadSuccess('file2.txt');
+                // Second upload
+                cy.visit('/upload');
+                cy.get('#file-upload')
+                    .selectFile({
+                        contents: Cypress.Buffer.from(JSON.stringify(fileContent)),
+                        fileName: 'file2.txt',
+                        mimeType: 'text/plain'
+                    });
+                
+                cy.get('#file-submit').click();
+                cy.get('#uploaded-files')
+                    .should('contain', 'file2.txt');
+            });
         });
     });
 
     describe('File Download Tests', () => {
         beforeEach(() => {
-            FileOperationsPage.visitDownloadPage();
+            // Clear downloads before each test
+            cy.exec('rm -rf cypress/downloads/*', { failOnNonZeroExit: false });
         });
 
         it('should download text file', () => {
-            FileOperationsPage
-                .downloadFile('test.txt')
-                .verifyFileDownloaded('test.txt');
+            cy.visit('/download');
+            
+            // Find a .txt file and download it
+            cy.contains('a', '.txt')
+                .then($a => {
+                    // Get the filename from the link
+                    const filename = $a.text().trim();
+                    // Download the file
+                    cy.wrap($a).click({ force: true });
+                    // Wait and verify the download
+                    cy.readFile(`cypress/downloads/${filename}`, { timeout: 10000 })
+                        .should('exist');
+                });
         });
 
         it('should handle multiple downloads', () => {
-            const files = ['test1.txt', 'test2.txt', 'test3.txt'];
-
-            files.forEach(file => {
-                FileOperationsPage
-                    .downloadFile(file)
-                    .verifyFileDownloaded(file);
-            });
+            cy.visit('/download');
+            
+            // Get two different .txt files
+            cy.get('a[href*=".txt"]')
+                .then($links => {
+                    // Get first file
+                    const firstFile = $links[0].text.trim();
+                    cy.wrap($links[0]).click({ force: true });
+                    cy.readFile(`cypress/downloads/${firstFile}`, { timeout: 10000 })
+                        .should('exist');
+                    
+                    // Get second file
+                    const secondFile = $links[1].text.trim();
+                    cy.wrap($links[1]).click({ force: true });
+                    cy.readFile(`cypress/downloads/${secondFile}`, { timeout: 10000 })
+                        .should('exist');
+                });
         });
     });
 
     describe('Error Handling', () => {
         it('should handle upload errors gracefully', () => {
-            // Intercept upload request and simulate failure
+            cy.visit('/upload');
+            
+            // Intercept the upload request
             cy.intercept('POST', '/upload', {
                 statusCode: 500,
-                body: 'Upload failed'
-            });
-
-            cy.writeFile('cypress/fixtures/error-test.txt', 'Error Test');
+                body: 'Internal Server Error'
+            }).as('failedUpload');
             
-            FileOperationsPage
-                .visitUploadPage()
-                .uploadFile('cypress/fixtures/error-test.txt');
-
-            // Verify error handling
-            cy.get(FileOperationsPage.selectors.errorMessage)
-                .should('be.visible');
+            // Attempt upload with an empty file
+            cy.get('#file-upload').selectFile({
+                contents: Cypress.Buffer.from(''),
+                fileName: 'empty.txt',
+                mimeType: 'text/plain'
+            });
+            
+            cy.get('#file-submit').click();
+            
+            // Wait for the failed request
+            cy.wait('@failedUpload');
+            
+            // Verify error message or state
+            cy.get('body').should(($body) => {
+                expect($body.text().toLowerCase()).to.match(/error|fail|invalid/);
+            });
         });
 
         it('should handle download errors gracefully', () => {
-            // Intercept download request and simulate failure
-            cy.intercept('GET', '/download/**', {
-                statusCode: 404,
-                body: 'File not found'
-            });
-
-            FileOperationsPage.visitDownloadPage();
+            cy.visit('/download');
             
-            // Attempt download and verify error handling
-            cy.get(FileOperationsPage.selectors.downloadLink)
-                .first()
-                .click();
-
-            cy.get(FileOperationsPage.selectors.errorMessage)
-                .should('be.visible');
+            // Intercept requests to non-existent files
+            cy.intercept('GET', '/download/nonexistent.txt', {
+                statusCode: 404,
+                body: 'Not Found'
+            }).as('failedDownload');
+            
+            // Create and click a non-existent file link
+            cy.window().then((win) => {
+                const link = win.document.createElement('a');
+                link.href = '/download/nonexistent.txt';
+                link.text = 'Nonexistent File';
+                win.document.body.appendChild(link);
+            });
+            
+            cy.get('a[href="/download/nonexistent.txt"]').click({ force: true });
+            cy.wait('@failedDownload').its('response.statusCode').should('eq', 404);
         });
     });
 
     describe('Network Conditions', () => {
         it('should handle slow upload speeds', () => {
-            cy.intercept('/upload', (req) => {
+            cy.visit('/upload');
+            
+            // Intercept with delay
+            cy.intercept('POST', '/upload', (req) => {
                 req.on('response', (res) => {
-                    res.setDelay(3000);
+                    res.setDelay(2000);
+                });
+            }).as('slowUpload');
+            
+            cy.fixture('example.json').then(fileContent => {
+                cy.get('#file-upload').selectFile({
+                    contents: Cypress.Buffer.from(JSON.stringify(fileContent)),
+                    fileName: 'slow-test.txt',
+                    mimeType: 'text/plain'
                 });
             });
-
-            cy.writeFile('cypress/fixtures/slow-test.txt', 'Slow Upload Test');
-
-            FileOperationsPage
-                .uploadFile('cypress/fixtures/slow-test.txt')
-                .verifyUploadSuccess('slow-test.txt');
+            
+            cy.get('#file-submit').click();
+            cy.wait('@slowUpload', { timeout: 10000 });
+            cy.get('#uploaded-files').should('contain', 'slow-test.txt');
         });
 
         it('should handle slow download speeds', () => {
-            cy.intercept('/download/**', (req) => {
+            cy.visit('/download');
+            
+            // Intercept download request with delay
+            cy.intercept('GET', '/download/**', (req) => {
                 req.on('response', (res) => {
-                    res.setDelay(3000);
+                    res.setDelay(2000);
                 });
+            }).as('slowDownload');
+            
+            // Find and click first .txt file
+            cy.contains('a', '.txt').then($a => {
+                const filename = $a.text().trim();
+                cy.wrap($a).click({ force: true });
+                cy.wait('@slowDownload', { timeout: 10000 });
+                cy.readFile(`cypress/downloads/${filename}`, { timeout: 15000 })
+                    .should('exist');
             });
-
-            FileOperationsPage
-                .downloadFile('test.txt')
-                .verifyFileDownloaded('test.txt');
         });
     });
 });

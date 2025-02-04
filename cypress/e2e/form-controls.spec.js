@@ -1,68 +1,93 @@
 // cypress/e2e/form-controls.spec.js
 
-import FormControlsPage from '../pages/FormControlsPage';
-
 describe('Form Controls Tests', () => {
     describe('Dropdown Tests', () => {
         beforeEach(() => {
-            FormControlsPage.visitDropdownPage();
+            cy.visit('/dropdown');
         });
 
         it('should select different dropdown options', () => {
             // Select and verify each option
-            FormControlsPage
-                .selectDropdownOption('1')
-                .selectDropdownOption('2');
+            cy.get('#dropdown')
+                .select('1')
+                .should('have.value', '1');
             
-            // Verify current selection
-            cy.get('#dropdown').should('have.value', '2');
+            cy.get('#dropdown')
+                .select('2')
+                .should('have.value', '2');
         });
     });
 
     describe('Checkbox Tests', () => {
         beforeEach(() => {
-            FormControlsPage.visitCheckboxesPage();
+            cy.visit('/checkboxes');
         });
 
         it('should toggle checkboxes correctly', () => {
-            // Toggle first checkbox on and off
-            FormControlsPage
-                .toggleCheckbox(1, true)
-                .toggleCheckbox(1, false);
+            // First checkbox starts unchecked
+            cy.get('input[type="checkbox"]').first()
+                .check()
+                .should('be.checked')
+                .uncheck()
+                .should('not.be.checked');
 
-            // Toggle second checkbox off and on
-            FormControlsPage
-                .toggleCheckbox(2, false)
-                .toggleCheckbox(2, true);
-
-            // Verify final states
-            cy.get('#checkboxes input:first-child').should('not.be.checked');
-            cy.get('#checkboxes input:last-child').should('be.checked');
+            // Second checkbox usually starts checked
+            cy.get('input[type="checkbox"]').last()
+                .uncheck()
+                .should('not.be.checked')
+                .check()
+                .should('be.checked');
         });
     });
 
     describe('Dynamic Controls Tests', () => {
         beforeEach(() => {
-            FormControlsPage.visitDynamicControlsPage();
+            cy.visit('/dynamic_controls');
         });
 
         it('should enable input and type text', () => {
             const testText = 'Testing dynamic input';
+            
+            // Get the input section
+            cy.get('#input-example')
+                .find('input[type="text"]')
+                .should('be.disabled');
+            
+            // Click enable button and wait for the loading to complete
+            cy.get('#input-example')
+                .find('button')
+                .click();
+            
+            cy.get('#input-example')
+                .find('#loading')
+                .should('exist');
+            
+            cy.get('#input-example')
+                .find('#loading')
+                .should('not.exist');
+            
+            // Type text and verify
+            cy.get('#input-example')
+                .find('input[type="text"]')
+                .should('be.enabled')
+                .type(testText)
+                .should('have.value', testText);
 
-            FormControlsPage
-                .toggleInput()  // Enable the input
-                .typeIntoInput(testText);
-
-            // Verify text was entered
-            cy.get('#input-example input')
-                .should('have.value', testText)
-                .and('be.enabled');
-
-            FormControlsPage
-                .toggleInput();  // Disable the input
-
-            // Verify input is disabled
-            cy.get('#input-example input')
+            // Click disable button and verify
+            cy.get('#input-example')
+                .find('button')
+                .click();
+            
+            cy.get('#input-example')
+                .find('#loading')
+                .should('exist');
+            
+            cy.get('#input-example')
+                .find('#loading')
+                .should('not.exist');
+            
+            cy.get('#input-example')
+                .find('input[type="text"]')
                 .should('be.disabled');
         });
     });
@@ -73,41 +98,69 @@ describe('Form Controls Tests', () => {
         });
 
         it('should upload a file successfully', () => {
-            // Create a test file using cy.writeFile
-            cy.writeFile('cypress/fixtures/test-file.txt', 'Hello, World!');
-
-            FormControlsPage
-                .uploadFile('cypress/fixtures/test-file.txt');
-
-            // Verify upload success
-            cy.get('#uploaded-files')
-                .should('contain', 'test-file.txt');
+            // Create a sample text file to upload
+            cy.fixture('example.json').then(fileContent => {
+                cy.get('#file-upload')
+                    .selectFile({
+                        contents: Cypress.Buffer.from(JSON.stringify(fileContent)),
+                        fileName: 'test-file.txt',
+                        mimeType: 'text/plain'
+                    });
+                
+                cy.get('#file-submit').click();
+                
+                cy.get('#uploaded-files')
+                    .should('be.visible')
+                    .and('contain', 'test-file.txt');
+            });
         });
     });
 
     describe('Complex Interaction Tests', () => {
         it('should handle a sequence of different interactions', () => {
             // Start with dropdown
-            FormControlsPage
-                .visitDropdownPage()
-                .selectDropdownOption('1');
-
+            cy.visit('/dropdown');
+            cy.get('#dropdown')
+                .select('1')
+                .should('have.value', '1');
+            
             // Move to checkboxes
-            FormControlsPage
-                .visitCheckboxesPage()
-                .toggleCheckbox(1, true)
-                .toggleCheckbox(2, true);
-
+            cy.visit('/checkboxes');
+            cy.get('input[type="checkbox"]').first()
+                .check()
+                .should('be.checked');
+            cy.get('input[type="checkbox"]').last()
+                .check()
+                .should('be.checked');
+            
             // End with dynamic controls
-            FormControlsPage
-                .visitDynamicControlsPage()
-                .toggleInput()
-                .typeIntoInput('Complex interaction complete!');
+            cy.visit('/dynamic_controls');
+            
+            // Enable input
+            cy.get('#input-example')
+                .find('button')
+                .click();
+            
+            cy.get('#input-example')
+                .find('#loading')
+                .should('exist');
+            
+            cy.get('#input-example')
+                .find('#loading')
+                .should('not.exist');
+            
+            // Type text and verify
+            const finalText = 'Complex interaction complete!';
+            cy.get('#input-example')
+                .find('input[type="text"]')
+                .should('be.enabled')
+                .type(finalText)
+                .should('have.value', finalText);
 
-            // Final verification
-            FormControlsPage
-                .getMessage()
-                .should('be.visible');
+            // Verify final state
+            cy.get('#message')
+                .should('be.visible')
+                .and('contain', 'enabled');
         });
     });
 });

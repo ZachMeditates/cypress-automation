@@ -1,110 +1,117 @@
-// cypress/pages/DataTablesPage.js
+// cypress/e2e/data-tables.spec.js
 
-class DataTablesPage {
-    selectors = {
-        // Table 1 selectors
-        table1: '#table1',
-        table1Headers: '#table1 th',
-        table1Rows: '#table1 tbody tr',
-        table1Cells: '#table1 tbody td',
-        
-        // Table 2 selectors
-        table2: '#table2',
-        table2Headers: '#table2 th',
-        table2Rows: '#table2 tbody tr',
-        table2Cells: '#table2 tbody td',
+import DataTablesPage from '../pages/DataTablesPage';
 
-        // Common selectors
-        sortableHeaders: 'th.header',
-        columnHeader: (name) => `th:contains("${name}")`,
-        cellByRowCol: (row, col) => `tbody tr:nth-child(${row}) td:nth-child(${col})`
-    };
-
-    /**
-     * Visit the data tables page
-     */
-    visit() {
+describe('Data Tables Functionality', () => {
+    beforeEach(() => {
+        // Visit the tables page before each test
         cy.visit('/tables');
-        return this;
-    }
+    });
 
-    /**
-     * Click on a column header to sort
-     * @param {string} columnName - Name of the column to sort
-     */
-    sortByColumn(columnName) {
-        cy.get(this.selectors.columnHeader(columnName)).click();
-        return this;
-    }
-
-    /**
-     * Get all values from a specific column
-     * @param {string} tableId - The table identifier (#table1 or #table2)
-     * @param {number} columnIndex - The index of the column (1-based)
-     */
-    getColumnValues(tableId, columnIndex) {
-        return cy.get(`${tableId} tbody tr td:nth-child(${columnIndex})`).then($cells => {
-            return Cypress._.map($cells, cell => cell.innerText.trim());
+    describe('Table 1 Sorting', () => {
+        it('should sort last names in ascending order', () => {
+            // Using more specific selector for table 1
+            cy.get('#table1 thead tr th')
+                .contains('Last Name')
+                .click();
+            
+            // Verify the first last name is alphabetically first
+            cy.get('#table1 tbody tr')
+                .first()
+                .find('td')
+                .first()
+                .should('contain', 'Bach');
         });
-    }
 
-    /**
-     * Verify column is sorted in specified order
-     * @param {string} tableId - The table identifier (#table1 or #table2)
-     * @param {number} columnIndex - The index of the column (1-based)
-     * @param {string} order - The expected order ('asc' or 'desc')
-     */
-    verifyColumnOrder(tableId, columnIndex, order) {
-        this.getColumnValues(tableId, columnIndex).then(values => {
-            const sorted = [...values].sort((a, b) => {
-                // Handle numeric sorting if needed
-                if (!isNaN(a) && !isNaN(b)) {
-                    return order === 'asc' ? Number(a) - Number(b) : Number(b) - Number(a);
-                }
-                // String sorting
-                return order === 'asc' ? 
-                    a.localeCompare(b) : 
-                    b.localeCompare(a);
+        it('should sort last names in descending order', () => {
+            // Click twice for descending order
+            cy.get('#table1 thead tr th')
+                .contains('Last Name')
+                .click()
+                .click();
+            
+            // Verify the first last name is alphabetically last
+            cy.get('#table1 tbody tr')
+                .first()
+                .find('td')
+                .first()
+                .should('contain', 'Smith');
+        });
+
+        it('should sort first names correctly', () => {
+            cy.get('#table1 thead tr th')
+                .contains('First Name')
+                .click();
+            
+            // Verify the first name sorting
+            cy.get('#table1 tbody tr')
+                .first()
+                .find('td')
+                .eq(1)  // First Name is the second column
+                .should('contain', 'Frank');
+        });
+
+        it('should sort email addresses', () => {
+            cy.get('#table1 thead tr th')
+                .contains('Email')
+                .click();
+            
+            // Verify email sorting
+            cy.get('#table1 tbody tr')
+                .first()
+                .find('td')
+                .eq(2)  // Email is the third column
+                .invoke('text')
+                .should('match', /^[a-z]/); // Should start with lowercase letter
+        });
+
+        it('should sort due amounts', () => {
+            cy.get('#table1 thead tr th')
+                .contains('Due')
+                .click();
+            
+            // Verify due amount sorting
+            cy.get('#table1 tbody tr')
+                .first()
+                .find('td')
+                .eq(3)  // Due is the fourth column
+                .invoke('text')
+                .should('contain', '$50.00');  // Smallest amount
+        });
+    });
+
+    describe('Table Content Verification', () => {
+        it('should display correct number of rows', () => {
+            cy.get('#table1 tbody tr')
+                .should('have.length', 4);
+        });
+
+        it('should verify specific cell content', () => {
+            // Verify a known cell content
+            cy.get('#table1 tbody tr')
+                .first()
+                .find('td')
+                .first()
+                .should('not.be.empty');
+        });
+    });
+
+    describe('Header Functionality', () => {
+        it('should verify all headers are clickable', () => {
+            // Check each header one by one
+            const headers = ['Last Name', 'First Name', 'Email', 'Due', 'Web Site'];
+            
+            headers.forEach(header => {
+                cy.get('#table1 thead tr th')
+                    .contains(header)
+                    .should('be.visible')
+                    .click();
+                
+                // Verify the header responds to click
+                cy.get('#table1 thead tr th')
+                    .contains(header)
+                    .should('exist');
             });
-
-            // Compare original and sorted arrays
-            if (order === 'asc') {
-                expect(values).to.deep.equal(sorted);
-            } else {
-                expect(values).to.deep.equal(sorted);
-            }
         });
-        return this;
-    }
-
-    /**
-     * Get cell content by row and column index
-     * @param {string} tableId - The table identifier (#table1 or #table2)
-     * @param {number} row - Row index (1-based)
-     * @param {number} col - Column index (1-based)
-     */
-    getCellContent(tableId, row, col) {
-        return cy.get(`${tableId} ${this.selectors.cellByRowCol(row, col)}`);
-    }
-
-    /**
-     * Get number of rows in table
-     * @param {string} tableId - The table identifier (#table1 or #table2)
-     */
-    getRowCount(tableId) {
-        return cy.get(`${tableId} tbody tr`).its('length');
-    }
-
-    /**
-     * Verify header exists and is sortable
-     * @param {string} columnName - Name of the column
-     */
-    verifySortableHeader(columnName) {
-        cy.get(this.selectors.columnHeader(columnName))
-            .should('exist')
-            .and('have.class', 'header');
-        return this;
-    }
-}
-
-export default new DataTablesPage();
+    });
+});

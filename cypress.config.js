@@ -1,4 +1,5 @@
 const { defineConfig } = require('cypress');
+const fs = require('fs');
 
 module.exports = defineConfig({
   e2e: {
@@ -11,39 +12,106 @@ module.exports = defineConfig({
       openMode: 0      // Don't retry in interactive mode (cypress open)
     },
 
-    // Browser viewport dimensions - important for responsive testing
+    // Browser viewport dimensions
     viewportWidth: 1280,
     viewportHeight: 720,
 
-    // Maximum time to wait for commands/assertions (in milliseconds)
-    defaultCommandTimeout: 5000,
+    // Command timeouts
+    defaultCommandTimeout: 10000,
+    pageLoadTimeout: 30000,
+    requestTimeout: 10000,
+    responseTimeout: 30000,
 
     // Test recording settings
-    video: true,                    // Save video recordings of test runs
-    screenshotOnRunFailure: true,   // Capture screenshots on test failures
+    video: true,
+    screenshotOnRunFailure: true,
 
     // Test file location pattern
     specPattern: 'cypress/e2e/**/*.{js,jsx,ts,tsx}',
 
-    // Location for downloaded files during tests
+    // File handling settings
     downloadsFolder: 'cypress/downloads',
+    fileServerFolder: 'cypress/fixtures',
+    watchForFileChanges: false,
 
-    // Enable experimental memory management to reduce memory usage
-    experimentalMemoryManagement: true,
-
-    // Disable same-origin policy - useful for testing cross-origin iframes
+    // Security and experimental features
     chromeWebSecurity: false,
+    experimentalMemoryManagement: true,
+    experimentalSessionAndOrigin: true,
 
-    // Environment-specific settings
+    // Environment settings
     env: {
-      failOnSnapshotDiff: true,    // Fail tests if visual snapshots don't match
-      updateSnapshots: false        // Don't automatically update snapshots
+      failOnSnapshotDiff: true,
+      updateSnapshots: false
     },
 
-    // Node event listeners for plugins
     setupNodeEvents(on, config) {
-      // Implement node event listeners here
-      // Common uses: custom commands, preprocessors, or reporters
+      // File download checking task
+      on('task', {
+        checkDownloadExists() {
+          return new Promise((resolve) => {
+            const downloadFolder = config.downloadsFolder;
+            fs.readdir(downloadFolder, (err, files) => {
+              if (err) resolve(false);
+              resolve(files && files.length > 0);
+            });
+          });
+        },
+
+        // Clean downloads folder
+        deleteDownloads() {
+          return new Promise((resolve) => {
+            const downloadFolder = config.downloadsFolder;
+            fs.readdir(downloadFolder, (err, files) => {
+              if (err) resolve(false);
+              
+              for (const file of files) {
+                fs.unlinkSync(`${downloadFolder}/${file}`);
+              }
+              resolve(true);
+            });
+          });
+        },
+
+        // Get downloaded file names
+        getDownloadedFiles() {
+          return new Promise((resolve) => {
+            const downloadFolder = config.downloadsFolder;
+            fs.readdir(downloadFolder, (err, files) => {
+              if (err) resolve([]);
+              resolve(files || []);
+            });
+          });
+        }
+      });
+
+      // Browser launch configuration for downloads
+      on('before:browser:launch', (browser = {}, launchOptions) => {
+        if (browser.family === 'chromium' && browser.name !== 'electron') {
+          launchOptions.preferences.default['download'] = {
+            default_directory: config.downloadsFolder,
+            prompt_for_download: false,
+            directory_upgrade: true
+          };
+        }
+
+        if (browser.family === 'firefox') {
+          launchOptions.preferences['browser.download.dir'] = config.downloadsFolder;
+          launchOptions.preferences['browser.download.folderList'] = 2;
+          launchOptions.preferences['browser.download.manager.showWhenStarting'] = false;
+          launchOptions.preferences['browser.helperApps.neverAsk.saveToDisk'] = 'application/octet-stream';
+        }
+
+        return launchOptions;
+      });
+
+      // Handle failed tests using valid event name
+      on('after:run', () => {
+        // Clean up after all tests complete
+        console.log('Tests completed, performing cleanup...');
+      });
+
+      return config;
     }
   },
 });

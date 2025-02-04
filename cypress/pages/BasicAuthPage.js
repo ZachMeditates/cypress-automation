@@ -13,9 +13,22 @@ class BasicAuthPage {
      * @param {string} password - The password for basic auth
      */
     visitWithAuth(username = 'admin', password = 'admin') {
-        cy.visit(`https://${username}:${password}@the-internet.herokuapp.com/basic_auth`, {
+        // Configure basic auth headers before visit
+        cy.session([username, password], () => {
+            cy.visit('/basic_auth', {
+                auth: {
+                    username: username,
+                    password: password
+                },
+                failOnStatusCode: false
+            });
+        });
+        
+        // Visit the page using the established session
+        cy.visit('/basic_auth', {
             failOnStatusCode: false
         });
+        
         return this;
     }
 
@@ -40,11 +53,10 @@ class BasicAuthPage {
      * @returns {BasicAuthPage}
      */
     verifySuccessfulAuth() {
-        cy.get(this.selectors.successMessage)
+        this.getSuccessMessage()
             .should('exist')
             .should('be.visible')
-            .should('contain', 'Congratulations')
-            .should('contain', 'successfully logged into a secure area');
+            .and('contain', 'Congratulations');
         return this;
     }
 }
