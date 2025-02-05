@@ -36,8 +36,8 @@ describe('Security Testing - Authentication', () => {
         bufferOverflowAttempts: [
             'A'.repeat(1024),
             'A'.repeat(2048),
-            'A'.repeat(4096),
             '％'.repeat(1024),  // Multi-byte character
+            'A'.repeat(4096),
             '👾'.repeat(1024)   // Emoji character
         ]
     };
@@ -45,12 +45,16 @@ describe('Security Testing - Authentication', () => {
     describe('XSS Prevention Tests', () => {
         securityTestCases.xssPayloads.forEach((payload, index) => {
             it(`should handle XSS payload ${index + 1} safely`, () => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: payload
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
-
-                BasicAuthPage.visitWithAuth(payload, payload);
             });
         });
     });
@@ -58,13 +62,29 @@ describe('Security Testing - Authentication', () => {
     describe('SQL Injection Prevention Tests', () => {
         securityTestCases.sqlInjectionPayloads.forEach((payload, index) => {
             it(`should prevent SQL injection attempt ${index + 1}`, () => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                // Test username field
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
 
-                BasicAuthPage.visitWithAuth(payload, 'regular_password');
-                BasicAuthPage.visitWithAuth('regular_username', payload);
+                // Test password field
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: 'regular_username',
+                        password: payload
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
+                });
             });
         });
     });
@@ -72,12 +92,16 @@ describe('Security Testing - Authentication', () => {
     describe('NoSQL Injection Prevention Tests', () => {
         securityTestCases.noSqlInjectionPayloads.forEach((payload, index) => {
             it(`should prevent NoSQL injection attempt ${index + 1}`, () => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
-
-                BasicAuthPage.visitWithAuth(payload, 'regular_password');
             });
         });
     });
@@ -85,12 +109,16 @@ describe('Security Testing - Authentication', () => {
     describe('Command Injection Prevention Tests', () => {
         securityTestCases.commandInjectionPayloads.forEach((payload, index) => {
             it(`should prevent command injection attempt ${index + 1}`, () => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
-
-                BasicAuthPage.visitWithAuth(payload, 'regular_password');
             });
         });
     });
@@ -98,12 +126,29 @@ describe('Security Testing - Authentication', () => {
     describe('Buffer Overflow Prevention Tests', () => {
         securityTestCases.bufferOverflowAttempts.forEach((payload, index) => {
             it(`should handle large input attempt ${index + 1} safely`, () => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                // Test username field
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
 
-                BasicAuthPage.visitWithAuth(payload, payload);
+                // Test password field
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: 'regular_username',
+                        password: payload
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
+                });
             });
         });
     });
@@ -118,12 +163,16 @@ describe('Security Testing - Authentication', () => {
             ];
 
             nullBytePayloads.forEach(payload => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
-
-                BasicAuthPage.visitWithAuth(payload, 'regular_password');
             });
         });
 
@@ -134,12 +183,16 @@ describe('Security Testing - Authentication', () => {
             ];
 
             responseSplittingPayloads.forEach(payload => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
-
-                BasicAuthPage.visitWithAuth(payload, 'regular_password');
             });
         });
 
@@ -152,12 +205,16 @@ describe('Security Testing - Authentication', () => {
             ];
 
             unicodePayloads.forEach(payload => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
-
-                BasicAuthPage.visitWithAuth(payload, 'regular_password');
             });
         });
 
@@ -170,12 +227,16 @@ describe('Security Testing - Authentication', () => {
             ];
 
             pathTraversalPayloads.forEach(payload => {
-                cy.on('fail', (error) => {
-                    expect(error.message).to.include('401');
-                    return false;
+                cy.request({
+                    url: '/basic_auth',
+                    failOnStatusCode: false,
+                    auth: {
+                        username: payload,
+                        password: 'regular_password'
+                    }
+                }).then(response => {
+                    expect(response.status).to.equal(401);
                 });
-
-                BasicAuthPage.visitWithAuth(payload, 'regular_password');
             });
         });
     });
